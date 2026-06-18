@@ -41,8 +41,20 @@
 
 `get_links_net_contact_force()` 在抓取后读到 ~0：Genesis 1.1.1 中 **PBD 粒子与刚体的接触不计入刚体 net contact force**。因此接触有效性以「抓取区位移 / 抬升量」为判据，而非接触力读数。
 
+## 干净演示版（grasp → 解钉 → 拎起）
+
+为得到「整块布被拎离」的干净演示（而非带固定顶边的折叠抬升），在 close 之后：
+1. 取抓取区粒子（距两指中点 <0.05，兜底取最近 6 颗），`cloth.fix_particles_to_link(link_idx=hand.idx, ...)` 绑到夹爪 hand link（类比 LeHome 的 attach，保证承载）。
+2. `cloth.release_particle(particles_idx_local=top_idx)` 解钉顶边。
+3. 拎起 0.28m + 顶部停留 60 步展示稳定悬挂。
+4. cloth scale 0.3→0.4（503 粒子，表面更平滑）。
+
+结果：`cloth_zmin_rise=0.308`（整块布最低点抬升 0.31m → 真被拎离）、`grasp_region_dz=0.317`、`finite=True` 全程稳定。视频 `output/feature3/feature3_grasp.mp4`。
+- 自标定本次选 `euler=(0,90,0)`，approach=+X、finger_sep=Y。
+- 观感问题定位：旧版「颗粒噪点」是**折叠自重叠时单面粗网格的着色表象**（非渲染 bug 非物理爆），平铺/自然垂坠后消失。
+
 ## 结论
 
 - ✅ RDNA4 上 Genesis 刚体夹爪 × PBD 布料接触抓取**可稳定跑通**，关键在控制流程（插值 + 低力 + 标定不 step），而非材质参数。
 - 朝向不要靠肉眼/手算 quat，**自标定（瞬移读手指轴）**最稳。
-- next-step（可选）：抓住后**解除顶边固定**再抬起，验证能否把整块布提离（当前是带固定顶边的折叠抬升）。
+- 拎起承载用 `fix_particles_to_link`（attach）最可靠；纯摩擦夹持仅够边角变形抬升。
