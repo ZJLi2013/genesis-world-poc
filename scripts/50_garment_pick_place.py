@@ -177,11 +177,13 @@ def main():
     scene.step(); snap()
 
     def goto(target_xyz, w, steps, force=None):
-        qg = ik(target_xyz, gquat, w)
-        qc = _np(franka.get_dofs_position()).copy()
+        # 笛卡尔逐点插值: 每步在直线路径上重解 IK(种子=当前位形), 避免关节解支跳变把布甩飞
+        start = _np(hand.get_pos()).copy()
+        target_xyz = np.asarray(target_xyz, dtype=float)
         for s in range(steps):
             a = (s + 1) / steps
-            qt = (1 - a) * qc + a * qg
+            way = (1 - a) * start + a * target_xyz
+            qt = ik(way, gquat, w)
             franka.control_dofs_position(qt[:7], motors)
             if force is None:
                 franka.control_dofs_position(np.array([w, w]), fingers)
@@ -223,10 +225,10 @@ def main():
     # 温柔放置: 适度抬起 → 移到目标 → 下降到低位, 每段 dwell 消摆 → 低位松开
     goto(corner + np.array([0, 0, 0.16]), 0.0, 300, force=-4.0)
     dwell(90, -4.0)
-    goto(np.array([place_xy[0], place_xy[1], z_grasp + 0.16]), 0.0, 350, force=-4.0)
-    dwell(90, -4.0)
+    goto(np.array([place_xy[0], place_xy[1], z_grasp + 0.16]), 0.0, 380, force=-4.0)
+    dwell(160, -4.0)   # 侧移后充分消摆, 否则落点 y 漂
     goto(np.array([place_xy[0], place_xy[1], 0.30]), 0.0, 300, force=-4.0)
-    dwell(90, -4.0)
+    dwell(120, -4.0)
     cloth.release_particle(particles_idx_local=grasped)
     for s in range(180):
         franka.control_dofs_position(np.array([0.04, 0.04]), fingers)
