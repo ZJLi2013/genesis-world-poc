@@ -19,7 +19,7 @@
 | **P0** | feature1 | 环境就绪 + 最小布料 smoke | `design/feature1_env_smoke.md` | `part1-exp.md` | **✅ 完成** |
 | **P0** | feature2 | 布料 + compliance 物性标定 | `design/feature2_cloth_asset.md` | `part2-exp.md` | **✅ 完成** |
 | **P1** | feature3 | 机器人 + 夹爪抓布接触验证 | `design/feature3_grasp_contact.md` | `part3-exp.md` | **✅ 完成** |
-| **P1** | feature4 | 真实衣物资产 + 自碰撞稳定性 + 抓取迁移 | `design/feature4_garment_asset.md` | `part4-exp.md` | **进行中** |
+| **P1** | feature4 | 真实衣物资产 + 自碰撞稳定性 + 抓取迁移 | `design/feature4_garment_asset.md` | `part4-exp.md` | **✅ 完成** |
 | **P1** | feature5 | 衣物操作任务（挂置/对折）+ 成功率指标 | `design/feature5_garment_task.md` | `part5-exp.md` | 待开始 |
 | **P2** | feature6 | 状态+观测录制 → LeRobot 数据集 | `design/feature6_state_io.md` | `part6-exp.md` | 待开始 |
 | **P2** | feature7 | datagen 批量化 + 闭环评估 | `design/feature7_datagen_eval.md` | `part7-exp.md` | 待开始 |
@@ -39,3 +39,4 @@
 - **feature2（2026-06-18）**：compliance 物性标定图谱建立（stretch 工作区间 ~1e-1…1e0；solver α=compliance/substep_dt² 缩放洞察）；对齐官方默认参数与 `find_closest_particle` / `meshes/cloth.obj` 用法。结论见 `part2-exp.md`。
 - **feature2.1（2026-06-18）**：真实 `cloth.obj` + 桌沿悬臂，bending 软区单调有效（droop 0.037→0.096）。结论见 `part2-exp.md`。
 - **feature3（2026-06-18）**：Franka 水平抓取悬挂布料跑通。自标定夹爪朝向（接近轴 +X、手指轴 Y）+ 抓近端竖边 + 插值接近 + 低力闭合，全程稳定无爆炸，抓取区抬升 +0.17m。关键坑：自标定枚举姿态时**不能 `scene.step()`**（会把手臂甩穿布料）。结论见 `part3-exp.md`。
+- **feature4（2026-06-18）**：非平面衣物自碰撞稳定性 + 抓取迁移。PBD 自碰撞内禀（半径=particle_size），多场景 finite、17–19ms、penetration≤2%（甜点 ~0.01–0.012）；feature3 抓取流程无改动迁到 tube 衣物，整筒拎起 0.34m、fold_penetration=0。「真衣服」最大未知（自碰撞）已排除。结论见 `part4-exp.md`。
