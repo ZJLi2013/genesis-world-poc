@@ -2,7 +2,7 @@
 
 大 feature：在 AMD RDNA4 上用 Genesis 做布料/衣物仿真，迭代验证「单资产 → 抓取 → 数据录制 → 数据生成 → 闭环评估」全链路。
 方法论：feature-dev-pipeline（Plan → Design → Build+Experiment → Close 循环）。
-可行性分析依据：lehome 仓库 `exp/study.md` 第二部分。
+可行性分析依据：`study.md` 第二部分（立项背景，已迁入本仓库）。
 
 ## 现状基线
 
