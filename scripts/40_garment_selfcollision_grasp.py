@@ -105,7 +105,7 @@ def penetration_ratio(pos, ps):
         return float(cnt) / max(n, 1)
 
 
-def build_scene(args, axis, cloth_pos, cloth_euler):
+def build_scene(args, axis, cloth_pos, cloth_euler, mesh_file=None, sphere=None):
     gs.init(backend=BACKENDS[args.backend]())
     scene = gs.Scene(
         sim_options=gs.options.SimOptions(dt=4e-3, substeps=10),
@@ -116,10 +116,13 @@ def build_scene(args, axis, cloth_pos, cloth_euler):
         show_viewer=False,
     )
     scene.add_entity(gs.morphs.Plane())
+    if sphere is not None:
+        scene.add_entity(gs.morphs.Sphere(radius=sphere[0], pos=sphere[1], fixed=True))
     franka = None
     if args.mode == "grasp":
         franka = scene.add_entity(gs.morphs.MJCF(file="xml/franka_emika_panda/panda.xml"))
-    mesh_file = args.mesh
+    if mesh_file is None:
+        mesh_file = args.mesh
     if mesh_file is None:
         os.makedirs(args.out, exist_ok=True)
         mesh_file = make_tube_obj(os.path.join(args.out, "tube.obj"),
@@ -129,18 +132,22 @@ def build_scene(args, axis, cloth_pos, cloth_euler):
         material=gs.materials.PBD.Cloth(stretch_compliance=1e-7, bending_compliance=args.bending,
                                         static_friction=0.6, kinetic_friction=0.6),
     )
-    cam = scene.add_camera(res=(640, 480), pos=(1.2, 1.1, 0.7), lookat=(0.45, 0.0, 0.25),
+    cam = scene.add_camera(res=(640, 480), pos=(1.2, 1.1, 0.7), lookat=(0.45, 0.0, 0.15),
                            fov=45, GUI=False)
     scene.build()
     return scene, cloth, franka, cam
 
 
 def run_drape(args):
-    # 软筒从高处掉下 → 落地塌扁/自折叠, 真正压力测试自碰撞
-    scene, cloth, _, cam = build_scene(args, axis="y",
-                                       cloth_pos=(0.45, 0.0, 0.36), cloth_euler=(20, 0, 0))
+    # 标准自碰撞测试: 软布披在固定球上 → 边缘形成褶皱互相接触(两层贴合)。
+    # tube 因环向刚度落地不塌(penetration=0 平凡解), 故改用 sphere-drape, 见 part4 pivot。
+    args.scale = 0.45          # cloth.obj 缩放到 ~0.45m, 披在 r=0.08 球上有足够 overhang 起褶
+    sph_r = 0.08
+    scene, cloth, _, cam = build_scene(
+        args, axis="z", cloth_pos=(0.45, 0.0, 0.30), cloth_euler=(0, 0, 0),
+        mesh_file="meshes/cloth.obj", sphere=(sph_r, (0.45, 0.0, sph_r)))
     n = _np(cloth.get_particles_pos()).shape[0]
-    print(f"[f4-drape] particles={n} particle_size={args.particle_size}")
+    print(f"[f4-drape] particles={n} particle_size={args.particle_size} sphere_r={sph_r}")
 
     def render(tag):
         rgb = cam.render(rgb=True)
@@ -160,9 +167,9 @@ def run_drape(args):
     pos = _np(cloth.get_particles_pos())
     finite = bool(np.isfinite(pos).all())
     pen = penetration_ratio(pos, args.particle_size) if finite else float("nan")
-    thickness = float(pos[:, 2].max() - pos[:, 2].min()) if finite else float("nan")
+    zmax = float(pos[:, 2].max()) if finite else float("nan")
     print(f"[f4-drape-metric] particle_size={args.particle_size} n={n} finite={finite} "
-          f"penetration_ratio={pen:.4f} flatten_thickness={thickness:.4f} step_ms={step_ms:.1f}")
+          f"penetration_ratio={pen:.4f} drape_zmax={zmax:.4f} step_ms={step_ms:.1f}")
 
 
 def run_grasp(args):
