@@ -126,7 +126,7 @@ def build_scene(args, axis, cloth_pos, cloth_euler):
                                   r=args.radius, h=args.height, nu=44, nv=26, axis=axis)
     cloth = scene.add_entity(
         gs.morphs.Mesh(file=mesh_file, scale=args.scale, pos=cloth_pos, euler=cloth_euler),
-        material=gs.materials.PBD.Cloth(stretch_compliance=1e-7, bending_compliance=1e-4,
+        material=gs.materials.PBD.Cloth(stretch_compliance=1e-7, bending_compliance=args.bending,
                                         static_friction=0.6, kinetic_friction=0.6),
     )
     cam = scene.add_camera(res=(640, 480), pos=(1.2, 1.1, 0.7), lookat=(0.45, 0.0, 0.25),
@@ -136,8 +136,9 @@ def build_scene(args, axis, cloth_pos, cloth_euler):
 
 
 def run_drape(args):
+    # 软筒从高处掉下 → 落地塌扁/自折叠, 真正压力测试自碰撞
     scene, cloth, _, cam = build_scene(args, axis="y",
-                                       cloth_pos=(0.45, 0.0, 0.14), cloth_euler=(0, 0, 0))
+                                       cloth_pos=(0.45, 0.0, 0.36), cloth_euler=(20, 0, 0))
     n = _np(cloth.get_particles_pos()).shape[0]
     print(f"[f4-drape] particles={n} particle_size={args.particle_size}")
 
@@ -148,7 +149,7 @@ def run_drape(args):
 
     render("00_init")
     t0 = time.perf_counter()
-    steps = 400
+    steps = 600
     for i in range(steps):
         scene.step()
         if i % 80 == 0:
@@ -165,7 +166,8 @@ def run_drape(args):
 
 
 def run_grasp(args):
-    # 竖直筒裙, 钉顶 rim 悬挂
+    # 竖直筒裙, 钉顶 rim 悬挂; 抓取用偏硬布(便于悬挂/抓取)
+    args.bending = 1e-4
     scene, cloth, franka, cam = build_scene(args, axis="z",
                                             cloth_pos=(0.42, 0.0, 0.30), cloth_euler=(0, 0, 0))
     motors, fingers = np.arange(7), np.arange(7, 9)
@@ -297,6 +299,7 @@ def main():
     p.add_argument("--radius", type=float, default=0.06)
     p.add_argument("--height", type=float, default=0.22)
     p.add_argument("--scale", type=float, default=1.0)
+    p.add_argument("--bending", type=float, default=1e-2, help="drape 用软区让筒会塌")
     p.add_argument("--particle-size", type=float, default=0.012)
     p.add_argument("--out", default="output/feature4/run")
     args = p.parse_args()
