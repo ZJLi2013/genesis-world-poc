@@ -69,12 +69,16 @@ def main():
     p.add_argument("--mesh", default="meshes/cloth.obj")
     p.add_argument("--scale", type=float, default=0.4)
     p.add_argument("--particle-size", type=float, default=0.01)
-    p.add_argument("--tol", type=float, default=0.12)
+    # 片状布抓一条边后落地会向 +x 自然铺展; 专家据此补偿, 把夹爪放到 target-offset
+    p.add_argument("--offset-x", type=float, default=0.33)
+    p.add_argument("--offset-y", type=float, default=0.0)
+    p.add_argument("--tol", type=float, default=0.15)
     p.add_argument("--render", action="store_true")
     p.add_argument("--out", default="output/feature5/ep")
     args = p.parse_args()
     os.makedirs(args.out, exist_ok=True)
     target = np.array([args.target_x, args.target_y])
+    place_xy = np.array([args.target_x - args.offset_x, args.target_y - args.offset_y])
 
     gs.init(backend=BACKENDS[args.backend]())
     scene = gs.Scene(
@@ -94,8 +98,8 @@ def main():
         material=gs.materials.PBD.Cloth(stretch_compliance=1e-7, bending_compliance=1e-4,
                                         static_friction=0.6, kinetic_friction=0.6),
     )
-    cam = scene.add_camera(res=(640, 480), pos=(1.4, 1.1, 0.9), lookat=(0.4, 0.0, 0.45),
-                           fov=48, GUI=False)
+    cam = scene.add_camera(res=(640, 480), pos=(1.5, 1.2, 0.9), lookat=(0.5, 0.0, 0.35),
+                           fov=50, GUI=False)
     scene.build()
 
     motors, fingers = np.arange(7), np.arange(7, 9)
@@ -219,9 +223,9 @@ def main():
     # 温柔放置: 适度抬起 → 移到目标 → 下降到低位, 每段 dwell 消摆 → 低位松开
     goto(corner + np.array([0, 0, 0.16]), 0.0, 300, force=-4.0)
     dwell(90, -4.0)
-    goto(np.array([args.target_x, args.target_y, z_grasp + 0.16]), 0.0, 350, force=-4.0)
+    goto(np.array([place_xy[0], place_xy[1], z_grasp + 0.16]), 0.0, 350, force=-4.0)
     dwell(90, -4.0)
-    goto(np.array([args.target_x, args.target_y, 0.30]), 0.0, 300, force=-4.0)
+    goto(np.array([place_xy[0], place_xy[1], 0.30]), 0.0, 300, force=-4.0)
     dwell(90, -4.0)
     cloth.release_particle(particles_idx_local=grasped)
     for s in range(180):
