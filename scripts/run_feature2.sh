@@ -9,12 +9,12 @@ mkdir -p "$OUT"
 LOG="$OUT/run.log"
 echo "=== feature2 run @ $(date -u) backend=$BACKEND ===" | tee "$LOG"
 
-# bending_compliance 从硬到软；stretch 固定（保持低延展）。
-for B in 1e-6 1e-4 1e-2; do
+# bending_compliance 从硬到软（更宽更硬的区间）；小而轻的布让抗弯能与重力竞争。
+for B in 1e-12 1e-9 1e-6 1e-3; do
   TAG="b${B}"
   echo "--- drape bending=$B ---" | tee -a "$LOG"
-  python3 scripts/20_cloth_drape.py --backend "$BACKEND" --bending "$B" --stretch 1e-7 \
-    --steps 1200 --render-every 200 --out "$OUT/$TAG" 2>&1 | tee -a "$LOG"
+  python3 scripts/20_cloth_drape.py --backend "$BACKEND" --bending "$B" --stretch 1e-8 \
+    --size 0.2 --rho 1.0 --steps 1200 --render-every 300 --out "$OUT/$TAG" 2>&1 | tee -a "$LOG"
 done
 
 echo "=== feature2 done @ $(date -u) ===" | tee -a "$LOG"

@@ -24,7 +24,6 @@ BACKENDS = {
 }
 
 CLOTH_N = 36
-CLOTH_SIZE = 0.4
 CLOTH_Z = 1.0
 
 
@@ -67,14 +66,16 @@ def main() -> None:
     parser.add_argument("--backend", default="amdgpu", choices=list(BACKENDS))
     parser.add_argument("--bending", type=float, default=1e-4, help="bending_compliance")
     parser.add_argument("--stretch", type=float, default=1e-7, help="stretch_compliance")
+    parser.add_argument("--size", type=float, default=0.2, help="布料边长(m)")
+    parser.add_argument("--rho", type=float, default=1.0, help="面密度 rho")
     parser.add_argument("--steps", type=int, default=1200)
     parser.add_argument("--render-every", type=int, default=200)
     parser.add_argument("--out", default="output/feature2/drape")
     args = parser.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
-    grid_obj = f"assets/cloth/_grid_{CLOTH_N}_{CLOTH_SIZE}.obj"
-    write_grid_obj(grid_obj, CLOTH_N, CLOTH_SIZE)
+    grid_obj = f"assets/cloth/_grid_{CLOTH_N}_{args.size}.obj"
+    write_grid_obj(grid_obj, CLOTH_N, args.size)
 
     gs.init(backend=BACKENDS[args.backend]())
     scene = gs.Scene(
@@ -90,6 +91,7 @@ def main() -> None:
     cloth = scene.add_entity(
         gs.morphs.Mesh(file=grid_obj, pos=(0.0, 0.0, CLOTH_Z), euler=(0.0, 0.0, 0.0)),
         material=gs.materials.PBD.Cloth(
+            rho=args.rho,
             stretch_compliance=args.stretch,
             bending_compliance=args.bending,
             static_friction=0.3,
@@ -98,14 +100,14 @@ def main() -> None:
     )
     # 侧视相机：沿 -Y 看，呈现 XZ 剖面的垂坠形态。
     cam = scene.add_camera(
-        res=(640, 480), pos=(0.1, 1.4, 1.05), lookat=(0.0, 0.0, 0.85), fov=40, GUI=False
+        res=(640, 480), pos=(0.05, 0.8, 0.97), lookat=(0.0, 0.0, 0.9), fov=42, GUI=False
     )
     scene.build()
 
     # 钉住 x 最小那条边（cantilever 固定端）。
     pos0 = np.asarray(_to_np(cloth.get_particles_pos()))
     x = pos0[:, 0]
-    spacing = CLOTH_SIZE / (CLOTH_N - 1)
+    spacing = args.size / (CLOTH_N - 1)
     pin_mask = x <= (x.min() + 0.6 * spacing)
     pin_idx = np.nonzero(pin_mask)[0].astype(np.int32)
     free_mask = x >= (x.max() - 0.6 * spacing)
