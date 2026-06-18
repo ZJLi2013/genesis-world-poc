@@ -19,3 +19,8 @@ assets/cloth/*.glb
 
 # 环境
 .env
+
+# 本地敏感信息（节点 IP/hostname/用户名/路径/凭据），不入 public repo
+*.local.md
+_local_*
+exp/_local_node.md

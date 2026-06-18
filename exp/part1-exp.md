@@ -7,12 +7,12 @@
 
 ## 环境（可复现）
 
-- 节点：AMD R9700（RDNA4，gfx1201），ROCm 7.2，hostname `R9700-Workstation-SH`。
+- 节点：AMD R9700（RDNA4，gfx1201），ROCm 7.2。（具体 IP/hostname/用户/容器名见本地 `exp/_local_node.md`，不入 public repo）
 - 镜像：`genesis-amd:latest`（Genesis **1.1.1** + quadrants + torch，已预装）。
-- 持久容器：`docker run -d --name zhengjli_cloth --device=/dev/kfd --device=/dev/dri --group-add video --ipc=host -v <repo>:/work -w /work genesis-amd:latest sleep infinity`
+- 持久容器：`docker run -d --name <CONTAINER> --device=/dev/kfd --device=/dev/dri --group-add video --ipc=host -v <repo>:/work -w /work genesis-amd:latest sleep infinity`
 - 依赖修复（**镜像 numpy 2.2.6 与 torch/genesis/skimage 的 numpy-1.x ABI 冲突**）：
   `pip install --force-reinstall numpy==1.26.4 scikit-image==0.22.0`
-- 运行：`docker exec zhengjli_cloth bash -lc 'bash scripts/run_feature1.sh amdgpu'`
+- 运行：`docker exec <CONTAINER> bash -lc 'bash scripts/run_feature1.sh amdgpu'`
 
 ## 关键结果
 

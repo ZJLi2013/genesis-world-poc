@@ -10,7 +10,7 @@
 - 物理：Genesis `PBDSolver` + `PBD.Cloth`（布料底层 PBD/XPBD，与 LeHome 同源）。
 - 后端入口：`gs.init(backend=gs.amdgpu)`（计算）/ `gs.vulkan`（渲染），待实测确认。
 - 代码现状：feature1 已落地并验证（env + PBD 布料 smoke + EGL 渲染）。
-- 容器：节点已建持久容器 `zhengjli_cloth`（numpy 已降级、依赖修复完成），后续 feature 直接 `docker exec` 复用。
+- 容器：节点已建持久容器（numpy 已降级、依赖修复完成），后续 feature 直接 `docker exec` 复用。节点/容器具体信息见本地 `exp/_local_node.md`（gitignored）。
 
 ## 优先级 Backlog
 
