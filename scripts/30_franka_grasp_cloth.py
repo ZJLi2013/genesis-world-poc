@@ -63,6 +63,7 @@ def main():
     p.add_argument("--backend", default="amdgpu", choices=list(BACKENDS))
     p.add_argument("--scale", type=float, default=0.3)
     p.add_argument("--out", default="output/feature3/grasp")
+    p.add_argument("--render-every", type=int, default=6, help="每隔几步出一帧(视频用)")
     args = p.parse_args()
     os.makedirs(args.out, exist_ok=True)
 
@@ -107,6 +108,15 @@ def main():
         arr = rgb[0] if isinstance(rgb, (tuple, list)) else rgb
         _save_png(arr, os.path.join(args.out, f"{tag}.png"))
 
+    _frame = {"n": 0}
+    re = max(1, args.render_every)
+
+    def snap():
+        rgb = cam.render(rgb=True)
+        arr = rgb[0] if isinstance(rgb, (tuple, list)) else rgb
+        _save_png(arr, os.path.join(args.out, f"frame_{_frame['n']:05d}.png"))
+        _frame["n"] += 1
+
     def cstat(tag):
         cp = _np(cloth.get_particles_pos())
         ok = bool(np.isfinite(cp).all())
@@ -120,10 +130,12 @@ def main():
         return q
 
     # 0) 布料静置
-    for _ in range(250):
+    for i in range(250):
         franka.control_dofs_position(q_home[:7], motors)
         franka.control_dofs_position(np.array([0.04, 0.04]), fingers)
         scene.step()
+        if i % re == 0:
+            snap()
     render("00_settle")
     cstat("settle_only")
 
@@ -173,9 +185,9 @@ def main():
 
     # 回到 safe 位（已是 best quat）并渲染确认朝向
     franka.set_dofs_position(ik(safe, gquat, 0.04), zero_velocity=True)
-    scene.step(); render("01_safe_calib"); cstat("after_settle")
+    scene.step(); render("01_safe_calib"); snap(); cstat("after_settle")
 
-    def goto(target, w, steps, tag=None):
+    def goto(target, w, steps):
         q_goal = ik(target, gquat, w)
         q_cur = _np(franka.get_dofs_position()).copy()
         for s in range(steps):
@@ -184,13 +196,13 @@ def main():
             franka.control_dofs_position(q_t[:7], motors)
             franka.control_dofs_position(np.array([w, w]), fingers)
             scene.step()
-            if tag and s % 60 == 0:
-                render(f"{tag}_{s:04d}")
+            if s % re == 0:
+                snap()
 
     # 2) 移到预抓取位（布外侧，手指张开）
-    goto(pre, 0.04, 200, tag="02_pre"); cstat("after_pre")
+    goto(pre, 0.04, 200); cstat("after_pre")
     # 3) 水平靠近，把竖边角送入两指之间
-    goto(corner, 0.04, 200, tag="03_approach"); cstat("after_approach")
+    goto(corner, 0.04, 200); cstat("after_approach")
     z_before = _np(cloth.get_particles_pos())[:, 2].copy()
     # 4) 闭合手指（缓慢、低力，避免 PBD 接触崩飞）
     q_close = ik(corner, gquat, 0.0)[:7]
@@ -198,8 +210,8 @@ def main():
         franka.control_dofs_position(q_close, motors)
         franka.control_dofs_force(np.array([-4.0, -4.0]), fingers)
         scene.step()
-        if s % 60 == 0:
-            render(f"04_close_{s:04d}")
+        if s % re == 0:
+            snap()
     cstat("after_close")
     fcontact = _np(franka.get_links_net_contact_force())
     # 5) 抬起
@@ -211,8 +223,8 @@ def main():
         franka.control_dofs_position(q_t[:7], motors)
         franka.control_dofs_force(np.array([-4.0, -4.0]), fingers)
         scene.step()
-        if s % 80 == 0:
-            render(f"05_lift_{s:04d}")
+        if s % re == 0:
+            snap()
     cstat("after_lift")
 
     cp2 = _np(cloth.get_particles_pos())
