@@ -95,6 +95,13 @@ def main():
     rf = franka.get_link("right_finger")
     q_home = _np(franka.get_dofs_position()).copy()
 
+    # 固定布料顶边 → 竖直悬挂成窗帘（否则会摊到地板上）
+    pos0 = _np(cloth.get_particles_pos())
+    ztop = pos0[:, 2].max()
+    top_idx = np.nonzero(pos0[:, 2] >= ztop - 0.012)[0].astype(np.int32)
+    cloth.fix_particles(particles_idx_local=top_idx)
+    print(f"[grasp] cloth particles={pos0.shape[0]} pinned_top={top_idx.size}")
+
     def render(tag):
         rgb = cam.render(rgb=True)
         arr = rgb[0] if isinstance(rgb, (tuple, list)) else rgb
