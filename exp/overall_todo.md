@@ -20,7 +20,7 @@
 | **P0** | feature2 | 布料 + compliance 物性标定 | `design/feature2_cloth_asset.md` | `part2-exp.md` | **✅ 完成** |
 | **P1** | feature3 | 机器人 + 夹爪抓布接触验证 | `design/feature3_grasp_contact.md` | `part3-exp.md` | **✅ 完成** |
 | **P1** | feature4 | 真实衣物资产 + 自碰撞稳定性 + 抓取迁移 | `design/feature4_garment_asset.md` | `part4-exp.md` | **✅ 完成** |
-| **P1** | feature5 | 衣物操作任务（pick-and-place）+ 成功率指标 | `design/feature5_garment_task.md` | `part5-exp.md` | **进行中** |
+| **P1** | feature5 | 衣物操作任务（pick-and-place）+ 成功率指标 | `design/feature5_garment_task.md` | `part5-exp.md` | **完成**（6/6, err 0.047m） |
 | **P2** | feature6 | 状态+观测录制 → LeRobot 数据集 | `design/feature6_state_io.md` | `part6-exp.md` | 待开始 |
 | **P2** | feature7 | datagen 批量化 + 闭环评估 | `design/feature7_datagen_eval.md` | `part7-exp.md` | 待开始 |
 
