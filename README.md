@@ -4,23 +4,34 @@
 
 背景与可行性分析见 lehome 仓库 `exp/study.md`（本 repo 不依赖 lehome 代码，仅复用其结论与资产网格）。
 
-## 环境
+## Env Setup
 
-- 硬件：AMD R9700（RDNA4），ROCm 7.x，radeonsi GPU 硬件光栅化。
-- 物理：Genesis `PBDSolver` + `PBD.Cloth`；强接触备选 `IPC(uipc)`。
-- 后端：`gs.init(backend=gs.amdgpu)`（计算）/ `gs.vulkan`（渲染），实测确认见 `exp/part1-exp.md`。
+- 硬件/后端：AMD R9700（RDNA4）+ ROCm 7.x 宿主；容器内 ROCm 6.4.1 / Python 3.10 / torch 2.6.0。
+- 物理：Genesis `PBDSolver` + `PBD.Cloth`（`gs.init(backend=gs.amdgpu)` 计算，`gs.vulkan` 或 EGL 渲染）；强接触备选 `IPC(uipc)`。
+
+### 镜像（首选：复用能跑的镜像）
+
+- ✅ **`genesis-cloth-poc:working`（== `genesis-amd:20260611`）**：genesis-world 1.1.1 / quadrants 1.0.2 / **numpy 1.26.4 + scikit-image 0.25.2**，开箱即用、**无需降级**。
+- ⚠️ **勿用 `genesis-amd:latest`**：numpy 是 2.x，genesis 建场景 `import skimage` 会 ABI 崩（`numpy.dtype size changed ... Expected 96, got 88`）。
+- 从头重建见 repo 根 `Dockerfile`（关键：锁 `numpy<2` + 匹配 skimage）：`docker build -t genesis-cloth-poc:rebuilt .`
+
+### 起容器 + 跑
+
+```bash
+docker run -d --name zhengjli_cloth --device=/dev/kfd --device=/dev/dri \
+  --group-add video --ipc=host -v $(pwd):/work -w /work \
+  genesis-cloth-poc:working sleep infinity
+
+# 最小 smoke
+docker exec -e PYOPENGL_PLATFORM=egl -w /work zhengjli_cloth \
+  python scripts/10_cloth_smoke.py --backend amdgpu
+```
+
+> 节点连接（IP/用户/repo 路径）、镜像备份命令等敏感/本地信息见 `exp/_local_node.md`（gitignored）。
+> 远端操作两个坑：SSH 命令勿用内层双引号（PowerShell 会破坏），`docker exec` 勿加 `bash -lc`（登录 shell 会挂起 ssh 会话）。
 
 ## 开发方法
 
-feature-dev-pipeline：backlog（`exp/overall_todo.md`）→ 设计（`exp/design/`）→ 实现+实验（`exp/partN-exp.md`）→ 回填结论（本 README「结论速查」）。
+feature-dev-pipeline：backlog（`docs/exp/overall_todo.md`）→ 设计+as-built 结论（`docs/features/featureN_*.md`）→ 实现+实验证据（`docs/exp/partN-exp.md`）。
 
-## 结论速查（conclusions-log）
-
-> 每完成一个 feature 回填一行：结论 + 关键证据 + 对后续影响 + 指回 partN。
-
-- **[feature1 ✅] Genesis 1.1.1 布料仿真在 R9700(RDNA4) 跑通**：`gs.amdgpu` 原生生效（29.86GB），PBD 布料 step 无 NaN，EGL GPU 渲染出图。三个环境约束影响所有后续 feature：① numpy 须降到 1.26.4（镜像 torch/genesis 按 numpy-1.x 编译）；② 渲染须强制 `PYOPENGL_PLATFORM=egl`（镜像预设 glx）；③ `PBD.Cloth` 用 compliance 语义（1/刚度）。证据/复现见 `exp/part1-exp.md`。
-- **[feature2 ✅] compliance 物性标定图谱建立**：`stretch_compliance` 是有效旋钮，转折点 ~1e-1…1e0（≤1e-2 不可伸长=真实布料区，≥1e2 橡皮筋）。**关键洞察**：solver 用 `alpha=compliance/substep_dt²`，轻布需 `compliance≳1e-2` 才进软区——所以小范围扫描看不出差别，且官方示例直接用默认值(1e-7)。bending 标定需强制曲率构型 + 软区参数。社区参考：`examples/tutorials/pbd_cloth.py` 用默认参数 + `find_closest_particle` 钉点 + 自带 `meshes/cloth.obj`。证据见 `exp/part2-exp.md`。
-- **[feature2.1 ✅] 真实 `cloth.obj` + bending 软区确认**：桌沿悬臂（强制曲率）+ bending 推到软区后，`droop` 随 compliance 单调增大（1e-4→0.037, 1e2→0.096），转折 ~1e-2→1e0，印证 alpha 阈值。bending 有效三要素：足够网格 + 强制曲率构型 + compliance 进软区。证据见 `exp/part2-exp.md`。
-- **[feature3 ✅] Franka 夹爪水平抓取悬挂布料跑通**：固定顶边成窗帘 + **自标定夹爪朝向**（瞬移读两指坐标，选接近轴+X/手指轴Y）+ 抓近端竖边（臂展内）+ 插值接近 + 低力(−4N)闭合 → 全程 `finite=True` 无爆飞，抓取区抬升 +0.17m。**决定性坑**：自标定枚举姿态时**绝不能 `scene.step()`**（手臂甩穿布会把粒子推爆，`cloth_zmax` 从 0.63 飙到 18+）；改为仅 `set_dofs_position` 更新运动学后直接读 link 坐标。接触有效性以位移/抬升判据（PBD-刚体接触不计入 `net_contact_force`）。干净演示版用 `fix_particles_to_link`(attach) + `release_particle`(解钉顶边) 把整块布拎离（`cloth_zmin_rise=0.31m`）。证据见 `exp/part3-exp.md`。
-- **[feature4 ✅] 非平面衣物自碰撞稳定性 + 抓取迁移**：Genesis PBD **自碰撞内禀**（空间哈希，碰撞半径=`particle_size`，无开关）。多自折叠场景（软布堆叠/tube/抓取折叠）均 `finite=True`、单步 17–19ms、`penetration_ratio≤2%` 且随 particle_size 单调（甜点 ~0.01–0.012）→ **自碰撞稳定廉价可用**，「真衣服」最大未知排除。feature3 抓取流程（自标定+attach+解钉）**无改动迁到 tube 衣物**，整筒拎起 0.34m、`fold_penetration=0`。脚本留 `--mesh` 口可换真实衣物 OBJ。证据见 `exp/part4-exp.md`。
-- **[feature5 ✅] 可重复衣物 pick-and-place 专家任务 + 成功率**：抓悬挂布 → attach+解钉 → 抬起 → 移到目标 → 低位松开。**N=6 成功率 6/6=1.00，平均落点误差 0.047m**（演示 `output/feature5/feature5_pick_place.mp4`）。**三个关键发现**：① 资产用**平布**（自然铺展、放置温柔）远好于刚性 tube（会甩飞）；② 片状布落地向 +X **自然铺展 ~0.33m**，专家用 `--offset-x` 补偿即可精准命中目标；③ 运动用**关节空间插值 + 短行程 + 消摆 dwell** 稳定，笛卡尔逐点重解 IK 反而抖动甩布（已弃）。**可靠包络**：gx=0.42、target x∈[0.68,0.78]、|y|≤0.04；越界（臂展极限 x=0.8、大侧移）会甩飞。**给 feature6 的硬约束**：录制 obs 必须含衣物形态 + target 位姿，否则策略非单值。真实衣物接入见 `exp/assets/clothesnet.md`。证据见 `exp/part5-exp.md`。
+各 feature 的结论速查见 `docs/exp/overall_todo.md`「已完成」小节；逐条结论 + 关键证据回填在对应 `docs/features/*.md` 的 as-built 段。

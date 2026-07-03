@@ -34,7 +34,7 @@ def main() -> None:
         print(f"[env-check] torch import failed: {exc}")
 
     # gs.init 会在日志中打印实际生效的 backend、GPU 名与显存。
-    # 若回退到 CPU，说明该后端在本节点不可用（见 part1-exp 回退项）。
+    # 若回退到 CPU，说明该后端在本节点不可用（见 part1-4-exp 回退项）。
     gs.init(backend=BACKENDS[args.backend]())
     print(f"[env-check] 请求 backend={args.backend}；以上 Genesis 日志为实际生效结果。")
 

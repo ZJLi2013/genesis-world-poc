@@ -14,11 +14,10 @@ output/
 *.npz
 
 # 大资产（按需用 git-lfs 或外部存储）
-assets/cloth/*.obj
-assets/cloth/*.glb
+assets/
 
-# ClothesNet 原始下载（大、license 受限）：不入库，只提交归一化后的 meshes/clothesnet/*.obj
-assets_raw/
+docs/exp/*
+docs/features/*
 
 # 环境
 .env

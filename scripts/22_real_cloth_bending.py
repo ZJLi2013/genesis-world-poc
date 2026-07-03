@@ -1,8 +1,8 @@
 """feature2.1: 真实 cloth.obj + 桌沿悬臂弯曲标定。
 
 用 Genesis 自带 `meshes/cloth.obj`，一半压在固定桌面上(clamped)，另一半悬出桌沿。
-悬出段必须在桌沿处弯曲 → bending_compliance 才有判别力（平整悬挂时曲率=0，bending 无效，见 part2-exp）。
-按 part2-exp 的 solver 数学：bending 需推到软区(compliance ≳ ~1e-3)才生效。
+悬出段必须在桌沿处弯曲 → bending_compliance 才有判别力（平整悬挂时曲率=0，bending 无效，见 part1-4-exp）。
+按 part1-4-exp 的 solver 数学：bending 需推到软区(compliance ≳ ~1e-3)才生效。
 
 用法:
     python scripts/22_real_cloth_bending.py --backend amdgpu --bending 1e-2 --out output/feature2_1/b1e-2
