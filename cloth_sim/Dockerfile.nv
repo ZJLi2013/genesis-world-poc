@@ -1,0 +1,33 @@
+# Genesis + IPC(libuipc) + FEM cloth on NVIDIA — feature10 (4090 node)
+# Verified working (Exp 10.0): torch 2.11.0+cu128 (cuda avail), genesis-world 1.2.1, pyuipc 0.0.25 (import name: uipc).
+# build:  docker build -f Dockerfile.nv -t genesis-nv:cu128 .
+# run:    docker run -d --name genesis_ipc --gpus all --ipc=host -v $HOME/robot:/robot -w /robot genesis-nv:cu128 sleep infinity
+# NOTE: use /usr/bin/python3 (3.10) inside — pyuipc is a cp310 wheel; PATH default /usr/local/bin/python3 (3.11) is empty.
+FROM nvidia/cuda:12.8.0-devel-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYOPENGL_PLATFORM=egl
+ENV NVIDIA_DRIVER_CAPABILITIES=all
+
+# system python 3.10 + X/EGL/GL runtime libs for genesis headless rendering (pyrender/pyglet/pyopengl)
+RUN apt-get update -qq && apt-get install -y --no-install-recommends \
+        python3 python3-pip python3-dev git \
+        libglvnd0 libegl1 libgl1 libgles2 libglu1-mesa \
+        libx11-6 libxrender1 libxext6 libxi6 libxxf86vm1 libxfixes3 \
+        libxcursor1 libxinerama1 libxrandr2 libxcb1 \
+        libglib2.0-0 libgomp1 xvfb \
+    && rm -rf /var/lib/apt/lists/*
+
+# NVIDIA EGL vendor ICD so pyopengl(EGL) finds the driver in a headless container
+# (container must run with graphics capability -> NVIDIA_DRIVER_CAPABILITIES=all above)
+RUN mkdir -p /usr/share/glvnd/egl_vendor.d && \
+    printf '{\n    "file_format_version" : "1.0.0",\n    "ICD" : {\n        "library_path" : "libEGL_nvidia.so.0"\n    }\n}\n' \
+      > /usr/share/glvnd/egl_vendor.d/10_nvidia.json
+
+# torch (CUDA 12.8) first, then Genesis + IPC backend.
+# pyuipc = IPC solver backend (import name `uipc`; cp310 wheel; needs CUDA 12.8).
+RUN python3 -m pip install --no-cache-dir --upgrade pip && \
+    python3 -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu128 && \
+    python3 -m pip install --no-cache-dir "genesis-world==1.2.1" "pyuipc==0.0.25"
+
+WORKDIR /robot
