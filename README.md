@@ -7,3 +7,5 @@ demos used to verify Genesis World features on AMD GPUs
 
 2. [3dgs_scene](./3dgs_scene/) — 🚧 **BLOCKED（AMD 上不支持）**：3DGS 渲染由 Nyx plugin 提供，其引擎是 Vulkan 硬件光追、RDNA4 本可兼容，但**闭源发行版在 `scene.build()` 硬依赖 NVIDIA `libcuda.so`/`cuInit`，AMD 无回退直接 SIGABRT，且无源码不可自修**。已提上游 [genesis-nyx #18](https://github.com/Genesis-Embodied-AI/genesis-nyx/issues/18)。结论：**当前 Genesis World 的 3DGS 渲染实质仅支持 NVIDIA GPU**。
 
+3. [amd_support](./amd_support/) — 🚧 **进行中**：跟进上游 [genesis-world #2962](https://github.com/Genesis-Embodied-AI/genesis-world/issues/2962)，把作者反馈的 AMD 支持/性能优化 support list 拆成可执行 feature（Franka `scene.build()` 硬件矩阵复现、源码自建 Quadrants 复测 gfx942 SIGSEGV、rigid benchmark 基线、Quadrants shuffle 特化等）。CI/底层硬件依赖项仅记录。见 [`amd_support/readme.md`](./amd_support/readme.md)。
+
