@@ -1,1 +1,7 @@
 amd_support/docs/
+
+# 3dgs_scene: experiment logs, per-feature design docs, and render outputs
+# stay local-only (durable code lives in scripts/, tracked separately).
+3dgs_scene/docs/exp/
+3dgs_scene/docs/features/
+3dgs_scene/out/
