@@ -25,6 +25,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       mesa-vulkan-drivers vulkan-tools libvulkan1 libglfw3 \
+      xvfb \
  && rm -rf /var/lib/apt/lists/*
 
 # genesis-world 1.2.1 + Nyx plugin. Does not pull torch (keeps ROCm torch);
