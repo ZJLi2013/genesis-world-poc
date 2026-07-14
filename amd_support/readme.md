@@ -6,24 +6,29 @@
 
 backlog / 优先级 / 硬件矩阵见 [`docs/overall_todo.md`](./docs/overall_todo.md)。
 
+## 已提上游 PR / 反馈 ✅
+
+- **[genesis-world #2962](https://github.com/Genesis-Embodied-AI/genesis-world/issues/2962)** 根因回复：gfx942 SIGSEGV = permlane64 codegen，[quadrants #746](https://github.com/Genesis-Embodied-AI/quadrants/pull/746) 是通用修复（需合并 + 发 release + genesis 提升 quadrants pin）；RDNA 不受影响。
+- **3 个 R9700(gfx1201)/MI300(gfx942) 双卡验证的 quadrants PR**：
+  - [#769](https://github.com/Genesis-Embodied-AI/quadrants/pull/769) 修 wave64 cross-half shuffle 上半 lane 选择错误（correctness）。
+  - [#770](https://github.com/Genesis-Embodied-AI/quadrants/pull/770) shuffle_down 加 DPP `row_shl` 快路径（perf ~1.36×）。
+  - [#773](https://github.com/Genesis-Embodied-AI/quadrants/pull/773) 修 AMDGPU 近似除法致 `floor(a/b)`/modulo 出错（correctness，fixes [#749](https://github.com/Genesis-Embodied-AI/quadrants/issues/749)）。
+
 ## 可执行 feature（本 repo 单机验证）
 
 1. **F1 硬件矩阵复现** ✅ — stock genesis-world 跑最小 Franka repro，覆盖 gfx1201(RDNA4) / gfx942(CDNA3)（gfx950 待测）。
-2. **F2 源码自建 Quadrants** ✅ — `CMAKE_ARGS=-DQD_WITH_AMDGPU=ON`；gfx942 直接验收 [quadrants#746](https://github.com/Genesis-Embodied-AI/quadrants/pull/746) 修好 SIGSEGV。
+2. **F2 源码自建 Quadrants** ✅ — `CMAKE_ARGS=-DQD_WITH_AMDGPU=ON`；gfx942 直接验收 [#746](https://github.com/Genesis-Embodied-AI/quadrants/pull/746) 修好 SIGSEGV。
 3. **F3 rigid benchmark** ✅ — 发行版栈在 gfx942 上 4/7 场景崩（含 dex_hand），#746 修好全部 7/7。
-4. **F4 Quadrants shuffle 特化** — `shuffle_down`/`shuffle_up` 走 AMD 专用指令（DPP/`ds_swizzle`），跟进 [quadrants#749](https://github.com/Genesis-Embodied-AI/quadrants/issues/749)。
-5. **F5 优化 rigid benchmark** — 基于 F3 优化 `dex_hand`，提 PR。
+4. **F4 shuffle 特化** ✅ → PR [#769](https://github.com/Genesis-Embodied-AI/quadrants/pull/769)（cross-half correctness）+ [#770](https://github.com/Genesis-Embodied-AI/quadrants/pull/770)（DPP perf）。
+5. **F6 modulo bug** ✅ → PR [#773](https://github.com/Genesis-Embodied-AI/quadrants/pull/773)：根因 `fast_math` 给 `fdiv` 打 `afn` → AMDGPU 近似倒数 → `floor`/modulo 错。
+6. **F8 fast-math golden 对拍 harness** ✅ — 固化 #749 打法为可复用 CPU vs AMDGPU 对拍（[`scripts/fastmath_golden.py`](./scripts/fastmath_golden.py)）；三处跑 10/10 pass、0 可见 bug（negative result，符合预判），产出 = #773 回归护栏 + CI test 基座。见 [feature8](./docs/features/feature8_fastmath_golden_harness.md)。
+7. **F5 优化 dex_hand（perf）** — 降为低优先级（P4），等有 CI 护栏再做。
 
-**上游反馈已发布** ✅：[genesis-world #2962](https://github.com/Genesis-Embodied-AI/genesis-world/issues/2962)（复现 + 两种修法 + 功能矩阵 + RDNA 不受影响）、[quadrants #746](https://github.com/Genesis-Embodied-AI/quadrants/pull/746)（gfx942 实测验证 + 催合并）。结论：#746 是通用修复，需合并 + 发 release + genesis 提升 quadrants pin。
+## 下一步 & 不做项
 
-## 🚫 当下不做（CI / 硬件 / 长期依赖，仅记录）
+优先级与 roadmap 见 [`docs/overall_todo.md`](./docs/overall_todo.md)。当前主线（本 repo 决策）：**P1 func coverage（非 rigid solver 的 AMD 覆盖矩阵）→ P2 correctness 深扫 → P3 CI 防退化（已有第一个 test：`fastmath_golden.py`）→ P4 perf**。
 
-以下来自 Hugh support list，但依赖常驻 CI runner、驱动/硬件层改动或属于路线观点，超出本 repo 单机验证范围，暂不落地：
-
-- **CDNA 正确性 CI**（list#2）：为 Quadrants / genesis-world 搭 CDNA 单元测试 CI（上游现仅 RDNA CI，EC2 V520，全线 WAVE64）。→ 需常驻 CDNA runner + 维护。
-- **AMD 性能基准 CI**（list#3 CI 部分）：把 benchmark 接入 CI（对标上游 `production.yml` 的 CUDA rtx6000 流水线）。→ 需 CI 基建；本 repo 只做本地基线（F3）。
-- **AMD 底层/硬件改进**（list#5）：fast generic shuffle（不经 shared memory）、kernel graph conditional node。→ 驱动/硬件层，长期。
-- **WAVE32 vs WAVE64**（list#6）：Hugh 观点，WAVE64 是 outlier（Metal/Intel/CUDA 均 WAVE32），统一 WAVE32 可降低 AMD 支持成本。→ 硬件路线观点，非工程任务。
+超出单机可落地范围（仅记录）：**list#5** GPU 侧 fast generic shuffle / kernel graph conditional node（驱动/硬件层）；**CI runner** 资源待落实（list#2/#3）；**WAVE32 vs WAVE64**（list#6）已纳入 P2——事实是 RDNA4 原生 wave32、CDNA3 原生 wave64，按各 arch 原生宽度验证正确性。
 
 ## 开发方法
 
